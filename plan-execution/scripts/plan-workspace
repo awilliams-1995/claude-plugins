@@ -1,0 +1,31 @@
+#!/bin/sh
+# Prints (creating if needed) the workspace directory for one plan.
+#
+#   plan-workspace PLAN_FILE
+#
+# Every artifact for that plan lives here: the ledger, step briefs, worker reports, review
+# packages, pre-flight tables. It sits under the repository root so it travels with the repo,
+# and it is git-ignored so it never reaches a commit. Another plan's directory is never yours.
+set -eu
+
+if [ $# -ne 1 ]; then
+    echo "usage: plan-workspace PLAN_FILE" >&2
+    exit 2
+fi
+
+planFile=$1
+[ -f "$planFile" ] || { echo "plan-workspace: no such plan file: $planFile" >&2; exit 1; }
+
+repoRoot=$(git rev-parse --show-toplevel)
+planBase=$(basename "$planFile"); planBase=${planBase%.*}
+workspace="$repoRoot/.plan-execution/$planBase"
+
+mkdir -p "$workspace"
+
+# Ignore the whole tree of workspaces, once, without touching the repo's own .gitignore.
+excludeFile="$repoRoot/.git/info/exclude"
+if [ -f "$excludeFile" ] && ! grep -qx '/.plan-execution/' "$excludeFile" 2>/dev/null; then
+    printf '/.plan-execution/\n' >> "$excludeFile"
+fi
+
+printf '%s\n' "$workspace"

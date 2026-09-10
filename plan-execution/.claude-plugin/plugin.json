@@ -1,0 +1,18 @@
+{
+  "name": "plan-execution",
+  "description": "Turns a large multi-step implementation plan into delivered, verified work: per-step pre-flight against the tree as it actually is, delegated implementation, independent adversarial review, and scoped fix verification.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Alex Williams",
+    "email": "alexwilliams@axscend.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "planning",
+    "orchestration",
+    "review",
+    "verification",
+    "preflight",
+    "workflows"
+  ]
+}

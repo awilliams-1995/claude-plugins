@@ -1,0 +1,52 @@
+#!/bin/sh
+# Builds one file holding everything a reviewer needs, and prints its path.
+#
+#   review-package PLAN_FILE BASE HEAD
+#
+# BASE is the commit recorded BEFORE the implementer was dispatched. Never HEAD~1: a step with
+# more than one commit silently loses all but the last.
+#
+# The reviewer reads the commit list, the stat summary and the full diff with context in one
+# call, and none of it ever enters the orchestrator's own context.
+set -eu
+
+if [ $# -ne 3 ]; then
+    echo "usage: review-package PLAN_FILE BASE HEAD" >&2
+    exit 2
+fi
+
+planFile=$1
+base=$2
+head=$3
+
+repoRoot=$(git rev-parse --show-toplevel)
+planBase=$(basename "$planFile"); planBase=${planBase%.*}
+workspace="$repoRoot/.plan-execution/$planBase"
+mkdir -p "$workspace"
+
+git rev-parse --verify --quiet "$base^{commit}" >/dev/null || {
+    echo "review-package: BASE $base is not a commit" >&2; exit 1; }
+git rev-parse --verify --quiet "$head^{commit}" >/dev/null || {
+    echo "review-package: HEAD $head is not a commit" >&2; exit 1; }
+
+if [ "$(git rev-parse "$base")" = "$(git rev-parse "$head")" ]; then
+    echo "review-package: BASE and HEAD are the same commit -- there is nothing to review." >&2
+    echo "review-package: a step that produced no commits has not been implemented." >&2
+    exit 1
+fi
+
+outFile="$workspace/review-$(git rev-parse --short "$base")-$(git rev-parse --short "$head").md"
+
+{
+    printf '# Review package: %s..%s\n\n' "$(git rev-parse --short "$base")" \
+        "$(git rev-parse --short "$head")"
+    printf '## Commits\n\n```\n'
+    git log --oneline "$base..$head"
+    printf '```\n\n## Files changed\n\n```\n'
+    git diff --stat "$base..$head"
+    printf '```\n\n## Full diff\n\n```diff\n'
+    git diff -U10 "$base..$head"
+    printf '```\n'
+} > "$outFile"
+
+printf '%s\n' "$outFile"

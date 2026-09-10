@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Extracts one step's full text from a plan into its own file, and prints that file's path.
+
+    task-brief PLAN_FILE STEP_ID
+
+STEP_ID is matched against two shapes, in this order: a markdown heading, and a checkbox step
+item of the form `- [ ] **Step M1.4: ...**`. Both are common in real plans, and a plan usually
+uses one for milestones and the other for the steps inside them. "Task 7", "7", "M1.4" and
+"Step 3" all work provided the plan's own text contains that token in one of those two places.
+A heading section runs to the next heading at the same or a higher level; a step item runs to
+the next step item, or to the next heading, whichever comes first.
+
+Why this exists: a worker must never be handed the whole plan. It reads its own requirements,
+with the exact values to use verbatim, and nothing else -- everything a worker reads that is not
+its step is either noise it may act on or context it may contradict.
+"""
+
+import pathlib
+import re
+import sys
+
+_HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+_STEP_ITEM = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+(.*?)\s*$")
+
+
+def _headings(lines):
+    """Yields (index, level, text) for every markdown heading, skipping fenced code."""
+    inFence = False
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            inFence = not inFence
+            continue
+        if inFence:
+            continue
+        match = _HEADING.match(line)
+        if match is not None:
+            yield index, len(match.group(1)), match.group(2)
+
+
+def _stepItems(lines):
+    """Yields (index, text) for every checkbox list item, skipping fenced code."""
+    inFence = False
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            inFence = not inFence
+            continue
+        if inFence:
+            continue
+        match = _STEP_ITEM.match(line)
+        if match is not None:
+            yield index, match.group(1)
+
+
+def _matching(candidates, needle):
+    """Candidates whose text carries the needle, tried at a word boundary first.
+
+    Boundary-first is not cosmetic: a plain substring search for "M1.1" also hits "M1.10",
+    which turns a valid request into a spurious ambiguity error -- or, worse, silently briefs
+    the wrong step when only one of the two exists. The looser substring pass is the fallback,
+    so an identifier with punctuation the boundary class does not anticipate still resolves.
+    """
+    pattern = re.compile(r"(?<![0-9A-Za-z.])" + re.escape(needle) + r"(?![0-9A-Za-z.])")
+    matches = [c for c in candidates if pattern.search(c[-1].lower())]
+    if matches:
+        return matches
+    return [c for c in candidates if needle in c[-1].lower()]
+
+
+def findStepItem(lines, stepId):
+    """Returns (start, end, itemText) for a checkbox step item, or raises LookupError."""
+    needle = stepId.strip().lower()
+    allItems = list(_stepItems(lines))
+    matches = _matching(allItems, needle)
+
+    if not matches:
+        raise LookupError("no heading and no checkbox step item matches %r" % stepId)
+    if len(matches) > 1:
+        raise LookupError(
+            "%r matches %d step items, so the brief would be ambiguous:\n  %s"
+            % (stepId, len(matches), "\n  ".join(m[1] for m in matches)))
+
+    start, text = matches[0]
+    # The step ends at the next step item or the next heading, whichever comes first.
+    boundaries = [i for i, _ in allItems if i > start]
+    boundaries += [i for i, _, _ in _headings(lines) if i > start]
+    end = min(boundaries) if boundaries else len(lines)
+    return start, end, text
+
+
+def findStep(lines, stepId):
+    """Returns (start, end, headingText) for the step, or raises LookupError."""
+    needle = stepId.strip().lower()
+    allHeadings = list(_headings(lines))
+
+    matches = _matching(allHeadings, needle)
+
+    if not matches:
+        return findStepItem(lines, stepId)
+    if len(matches) > 1:
+        raise LookupError(
+            "%r matches %d headings, so the brief would be ambiguous:\n  %s"
+            % (stepId, len(matches), "\n  ".join(h[2] for h in matches)))
+
+    start, level, text = matches[0]
+    end = len(lines)
+    for index, otherLevel, _ in allHeadings:
+        if index > start and otherLevel <= level:
+            end = index
+            break
+    return start, end, text
+
+
+def _slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:60] or "step"
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if len(argv) != 2:
+        print("usage: task-brief PLAN_FILE STEP_ID", file=sys.stderr)
+        return 2
+
+    planPath = pathlib.Path(argv[0])
+    stepId = argv[1]
+    if not planPath.is_file():
+        print("task-brief: no such plan file: %s" % planPath, file=sys.stderr)
+        return 1
+
+    lines = planPath.read_text(encoding="utf-8").splitlines()
+    try:
+        start, end, headingText = findStep(lines, stepId)
+    except LookupError as error:
+        print("task-brief: %s" % error, file=sys.stderr)
+        return 1
+
+    body = "\n".join(lines[start:end]).rstrip() + "\n"
+    if len(body.strip().splitlines()) <= 1:
+        print("task-brief: %r has a heading but no body -- the plan step is empty"
+              % headingText, file=sys.stderr)
+        return 1
+
+    workspace = pathlib.Path(_workspaceFor(planPath))
+    briefPath = workspace / ("brief-%s.md" % _slug(stepId))
+    briefPath.write_text(
+        "<!-- extracted from %s -- this file is your requirements, use its exact values"
+        " verbatim -->\n\n%s" % (planPath, body), encoding="utf-8")
+    print(briefPath)
+    return 0
+
+
+def _workspaceFor(planPath):
+    import subprocess
+    repoRoot = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    workspace = pathlib.Path(repoRoot) / ".plan-execution" / planPath.stem
+    workspace.mkdir(parents=True, exist_ok=True)
+    return workspace
+
+
+if __name__ == "__main__":
+    sys.exit(main())
