@@ -27,8 +27,17 @@ estimate. Steps that did not ran at about 3.25x.
 ## Install
 
 ```sh
-/plugin marketplace add ~/Developer/claude-plugins
-/plugin install plan-execution@axscend-plugins
+/plugin marketplace add awilliams-1995/claude-plugins
+/plugin install plan-execution@awilliams-1995-plugins
+```
+
+Adding the marketplace is a once-per-machine step. To switch the plugin on for everyone working
+in a given repo, commit this to that repo's `.claude/settings.json`:
+
+```json
+"enabledPlugins": {
+  "plan-execution@awilliams-1995-plugins": true
+}
 ```
 
 Then, in a repo with a plan:
@@ -59,7 +68,12 @@ that produced no commits has not been implemented.
 
 ## Where the content came from
 
-The lessons encoded here are measured, not theorised. They come from executing an eleven-milestone
-firmware rewrite: 19 fix rounds across 8 steps, 83 commits, and a catalogue of defects that
-survived ordinary review. The defect list in the skill -- above all "the gate that cannot fail",
-found 26 times in one milestone -- is that catalogue.
+The lessons encoded here are measured, not theorised. They come from executing the first
+milestone of an eleven-milestone embedded firmware rewrite: 19 fix rounds across 8 steps, 83
+commits, and a catalogue of the defects that survived ordinary review. The defect list in the
+skill -- above all "the gate that cannot fail", found 26 times in that one milestone -- is that
+catalogue.
+
+## Licence
+
+MIT. See [LICENSE](../LICENSE).

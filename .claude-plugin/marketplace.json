@@ -1,9 +1,9 @@
 {
-  "name": "axscend-plugins",
-  "description": "Internal plugin marketplace: reusable agent tooling shared across Axscend projects.",
+  "name": "awilliams-1995-plugins",
+  "description": "Reusable agent tooling for planning, executing and reviewing multi-step engineering work.",
   "owner": {
     "name": "Alex Williams",
-    "email": "alexwilliams@axscend.com"
+    "url": "https://github.com/awilliams-1995"
   },
   "plugins": [
     {
@@ -13,7 +13,7 @@
       "source": "./plan-execution",
       "author": {
         "name": "Alex Williams",
-        "email": "alexwilliams@axscend.com"
+        "url": "https://github.com/awilliams-1995"
       }
     }
   ]

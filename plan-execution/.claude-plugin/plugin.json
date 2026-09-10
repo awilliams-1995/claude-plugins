@@ -4,8 +4,10 @@
   "version": "0.1.0",
   "author": {
     "name": "Alex Williams",
-    "email": "alexwilliams@axscend.com"
+    "url": "https://github.com/awilliams-1995"
   },
+  "homepage": "https://github.com/awilliams-1995/claude-plugins",
+  "repository": "https://github.com/awilliams-1995/claude-plugins",
   "license": "MIT",
   "keywords": [
     "planning",
