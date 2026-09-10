@@ -10,7 +10,7 @@ Add this repository as a plugin marketplace:
 
 | Plugin | What it does |
 |---|---|
-| [`plan-execution`](plan-execution/) | Executes a large multi-step implementation plan: per-step pre-flight against the tree as it actually is, delegated implementation, independent adversarial review, scoped fix verification, and a durable ledger that survives context compaction. |
+| [`plan-execution`](plan-execution/) | Develops an idea into a spec and a reviewed plan, then executes it: per-step pre-flight against the tree as it actually is, delegated implementation, independent adversarial review, scoped fix verification, and a durable ledger that survives context compaction. |
 
 ```sh
 /plugin install plan-execution@awilliams-1995-plugins

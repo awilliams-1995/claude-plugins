@@ -1,9 +1,9 @@
 ---
 name: orchestrating-plans
 description: Use when executing a large multi-step implementation plan that will outlive one
-  context window - runs per-step pre-flight against the tree as it actually is, delegates the
-  build, dispatches independent adversarial review, verifies the fixes, and keeps a durable
-  ledger so the work survives compaction.
+  context window - refuses to start on a plan that has not been reviewed, runs per-step pre-flight
+  against the tree as it actually is, delegates the build, dispatches independent adversarial
+  review, verifies the fixes, and keeps a durable ledger so the work survives compaction.
 ---
 
 # Orchestrating Plans
@@ -35,10 +35,32 @@ minutes. The cost of skipping it is fix rounds.
 | Critic | delegated worker (`harsh-critic`) | **must not share your reasoning**, or it inherits your blind spots |
 | Verifier | delegated worker (`fix-verifier`) | must reproduce claims, not read them |
 | Reporter | delegated worker (`plan-progress-reporter`) | read-only; reconciles plan, ledger and history |
+| Plan reviewer | delegated worker (`plan-reviewer`) | judges the plan against its spec; cannot have written it |
 
 **The decisive rule.** Anything that judges the work runs in a context you do not share. Anything
 that needs continuity across steps stays with you. You may not "play the part" of the critic: a
 reviewer that inherited your reasoning about why the code is right will agree with it.
+
+## Intake -- before you set anything up
+
+You do not execute an unreviewed plan. Three cases:
+
+- **No plan named.** Invoke `developing-plans`. Do not offer to execute from a conversation, and
+  do not write the plan yourself in this session -- you would then be executing your own plan,
+  and every judgement after that point is your own reasoning agreeing with itself.
+- **A plan whose header carries `**Plan review:** passed ...`.** Proceed to Setup. It has been
+  reviewed and a human confirmed its shape.
+- **A plan with no such stamp.** Dispatch `plan-reviewer` once, with the plan, the spec, the path
+  to `plan-criteria.md` in the `developing-plans` skill directory, round number 1, and a report
+  path in the workspace. Then rule on what comes back: amend the plan where a finding is cheap to
+  fix now, and park the rest as `Ruling <n>` lines in the ledger so later steps and later
+  reviewers are bound by them. A `NEEDS-HUMAN` line from the reviewer goes into the queue.
+
+One review, not a loop. If the plan comes back so far from its spec that amendment is guesswork,
+that is the fourth stopping condition below -- stop and put it to the human.
+
+A plan naming no spec is executable, but say so plainly before you start: every ruling you make
+will be provisional, and the ledger records it as such.
 
 ## Setup
 
@@ -99,6 +121,7 @@ on it and record what it costs if wrong. If it is inside your authority, rule on
 ```dot
 digraph loop {
   rankdir=TB;
+  "Intake: reviewed plan? else review or develop one" [shape=box];
   "Setup: workspace, ledger, read plan and spec" [shape=box];
   "Pre-flight the next step" [shape=box];
   "Premise false or step obsolete?" [shape=diamond];
@@ -119,6 +142,7 @@ digraph loop {
   "More steps?" [shape=diamond];
   "Final whole-branch review, strongest model" [shape=box];
 
+  "Intake: reviewed plan? else review or develop one" -> "Setup: workspace, ledger, read plan and spec";
   "Setup: workspace, ledger, read plan and spec" -> "Pre-flight the next step";
   "Pre-flight the next step" -> "Premise false or step obsolete?";
   "Premise false or step obsolete?" -> "Amend plan text, ruling per amendment" [label="yes"];
@@ -278,6 +302,7 @@ model -- usually the most expensive one -- which silently defeats this section.
 | 1-2 files, complete spec | cheap |
 | Multi-file with integration concerns | mid |
 | Pre-flight | mid |
+| Plan review at intake | mid |
 | Critic and verifier | mid, scaled up for subtle or high-risk diffs |
 | Design judgement, broad codebase understanding | strongest |
 | Final whole-branch review | strongest |
@@ -325,6 +350,7 @@ this list.
 
 | Thought | Reality |
 |---|---|
+| "There is no plan, but I know what to build" | Invoke developing-plans. A plan you wrote is a plan you cannot judge. |
 | "The plan says X, so X is true" | The plan was written before the code existed. Pre-flight it. |
 | "I already know what is in that file" | You knew at some earlier step. Have pre-flight look. |
 | "I can review this myself, I know what it should do" | That is exactly why you cannot. Dispatch a critic. |

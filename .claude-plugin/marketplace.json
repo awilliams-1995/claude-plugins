@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "plan-execution",
-      "description": "Orchestrates delivery of a large multi-step plan: per-step pre-flight, delegated implementation, independent review, scoped verification.",
+      "description": "Develops an idea into a spec and a reviewed plan, then delivers it: per-step pre-flight, delegated implementation, independent review, scoped verification.",
       "version": "0.1.0",
       "source": "./plan-execution",
       "author": {

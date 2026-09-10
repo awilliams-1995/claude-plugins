@@ -1,6 +1,6 @@
 {
   "name": "plan-execution",
-  "description": "Turns a large multi-step implementation plan into delivered, verified work: per-step pre-flight against the tree as it actually is, delegated implementation, independent adversarial review, and scoped fix verification.",
+  "description": "Develops an idea into a spec and an adversarially reviewed plan, then delivers it: per-step pre-flight against the tree as it actually is, delegated implementation, independent adversarial review, and scoped fix verification.",
   "version": "0.1.0",
   "author": {
     "name": "Alex Williams",
